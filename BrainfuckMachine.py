@@ -1,27 +1,12 @@
 #!/usr/bin/python3
 import sys
+from Helpers import find_brackets
 
 class BrainfuckMachine(object):
 	def init(self, code):
 		## Find [ and ] commands:
-		beg = 0
-		wstart = []
-		while True:
-			f = code.find("[", beg)
-			if f == -1:
-				break
-			else:
-				beg = f+1
-				wstart.append(f)
-		beg = 0
-		wend = []
-		while True:
-			f = code.find("]", beg)
-			if f == -1:
-				break
-			else:
-				beg = f+1
-				wend.append(f)
+		wstart = find_brackets(code, "[")
+		wend = find_brackets(code, "]")
 		## Check if the number of both is the same:
 		if len(wstart) != len(wend):
 			raise ValueError("Invalid code, %d occurrences of [, but %d of ]." % (len(wstart), len(wend)))
@@ -29,7 +14,7 @@ class BrainfuckMachine(object):
 		loops = []
 		for i in range(len(wend)):
 			if wstart[0] > wend[i]:
-				raise ValueError
+				raise ValueError("Loop brackets aren't matching.")
 			j = 0
 			while (len(wstart) > j+1) and (wstart[j+1] < wend[i]):
 				j += 1
@@ -42,26 +27,31 @@ class BrainfuckMachine(object):
 		self.codeptr = 0
 		self.loops = loops
 		
+	def next(self, verbose=False):
+		if self.codeptr >= len(self.code):
+			raise RuntimeError("No next command found.")
+		try:
+			self.cmd(self.code[self.codeptr])
+		except NotImplementedError:
+			if self.code[self.codeptr] == "[":
+				if self.data[self.dataptr] == 0:
+					## Jump to the matching ] ##
+					for l in self.loops:
+						if l[0] == self.codeptr:
+							self.codeptr = l[1]
+			elif self.code[self.codeptr] == "]":
+				if self.data[self.dataptr] != 0:
+					## Jump to the matching [ ##
+					for l in self.loops:
+						if l[1] == self.codeptr:
+							self.codeptr = l[0]
+		self.codeptr += 1
+		if verbose:
+			self.state()
+		
 	def run(self, verbose=False):
 		while self.codeptr < len(self.code):
-			try:
-				self.cmd(self.code[self.codeptr])
-			except NotImplementedError:
-				if self.code[self.codeptr] == "[":
-					if self.data[self.dataptr] == 0:
-						## Jump to the matching ] ##
-						for l in self.loops:
-							if l[0] == self.codeptr:
-								self.codeptr = l[1]
-				elif self.code[self.codeptr] == "]":
-					if self.data[self.dataptr] != 0:
-						## Jump to the matching [ ##
-						for l in self.loops:
-							if l[1] == self.codeptr:
-								self.codeptr = l[0]
-			self.codeptr += 1
-			if verbose:
-				self.state()
+			self.next(verbose)
 		
 	def state(self):
 		print("cptr=%d, data=[" % self.codeptr, end="", file=sys.stderr)
@@ -111,14 +101,8 @@ if __name__ == "__main__":
 	m = BrainfuckMachine()
 	## Example 1, Calculate 5^3:
 	m.init("+++++[>+++++[>+++++<-]<-]")
-	m.run(True)
+	m.run(False)
 	print(m[2])
-	## Example 2:
-	m.init(""" ++++++++[>++++++++<-]>[-<++>]<-----     schreibt die Zahl 123 in die erste Zelle
- #>[-]++++++++[>[-]<[->+<]>-]<<<<<<<<<    Löschen der nächsten Zellen
- #[->+<]>[>+<-<+>]>[>>>>>[->+<]>+<<<<<    der eigentliche Code
- #++++++++++<[->>+<-[>>>]>[[<+>-]>+>>]
- #<<<<<]>[-]>[-<<+>>]>[-<<+>>]<<]>>>>>
- #[<<<<+++++++[-<+++++++>]<-[<+>-]<.[-
- #]>>>>>>[-<+>]<-]<<<<<<<""")
-	m.run(True)
+	## Example 2, Print the number 123:
+	m.init("++++++++[>++++++++<-]>[-<++>]<----->[-]++++++++[>[-]<[->+<]>-]<<<<<<<<<[->+<]>[>+<-<+>]>[>>>>>[->+<]>+<<<<<++++++++++<[->>+<-[>>>]>[[<+>-]>+>>]<<<<<]>[-]>[-<<+>>]>[-<<+>>]<<]>>>>>[<<<<+++++++[-<+++++++>]<-[<+>-]<.[-]>>>>>>[-<+>]<-]<<<<<<<")
+	m.run(False)
