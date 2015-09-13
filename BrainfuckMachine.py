@@ -1,33 +1,16 @@
 #!/usr/bin/python3
 import sys
-from Helpers import find_brackets
+import Helpers
 
 class BrainfuckMachine(object):
 	def init(self, code):
-		## Find [ and ] commands:
-		wstart = find_brackets(code, "[")
-		wend = find_brackets(code, "]")
-		## Check if the number of both is the same:
-		if len(wstart) != len(wend):
-			raise ValueError("Invalid code, %d occurrences of [, but %d of ]." % (len(wstart), len(wend)))
-		## Create pairs and register them:
-		loops = []
-		for i in range(len(wend)):
-			if wstart[0] > wend[i]:
-				raise ValueError("Loop brackets aren't matching.")
-			j = 0
-			while (len(wstart) > j+1) and (wstart[j+1] < wend[i]):
-				j += 1
-			loops.append((wstart[j], wend[i]))
-			del wstart[j]
-		## Valid code, set variables:
+		self.loops = Helpers.find_bracketpairs(code, "[", "]")
 		self.dataptr = 0
 		self.data = [0]
 		self.code = code
 		self.codeptr = 0
-		self.loops = loops
 		
-	def next(self, verbose=False):
+	def next(self):
 		if self.codeptr >= len(self.code):
 			raise RuntimeError("No next command found.")
 		try:
@@ -46,12 +29,12 @@ class BrainfuckMachine(object):
 						if l[1] == self.codeptr:
 							self.codeptr = l[0]
 		self.codeptr += 1
-		if verbose:
-			self.state()
 		
 	def run(self, verbose=False):
 		while self.codeptr < len(self.code):
-			self.next(verbose)
+			self.next()
+			if verbose:
+				self.state()
 		
 	def state(self):
 		print("cptr=%d, data=[" % self.codeptr, end="", file=sys.stderr)
@@ -73,7 +56,7 @@ class BrainfuckMachine(object):
 			self.dataptr += 1
 		elif c == "<":
 			if self.dataptr == 0:
-				raise ValueError("dataptr is at zero, decreasing not allowed.")
+				raise ValueError("Data pointer is at zero, decreasing not allowed.")
 			self.dataptr -= 1
 		elif c == "+":
 			self.data[self.dataptr] += 1
@@ -96,6 +79,9 @@ class BrainfuckMachine(object):
 		
 	def __setitem__(self, key, value):
 		self.data[key] = value
+		
+	def __len__(self):
+		return len(self.data)
 
 if __name__ == "__main__":
 	m = BrainfuckMachine()
